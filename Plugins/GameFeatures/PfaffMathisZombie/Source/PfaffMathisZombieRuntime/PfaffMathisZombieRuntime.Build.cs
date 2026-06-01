@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class PfaffMathisZombieRuntime : ModuleRules
 {
@@ -8,29 +9,25 @@ public class PfaffMathisZombieRuntime : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
+		bUseRTTI = true;
+		bEnableExceptions = true;
+		
 		PublicIncludePaths.AddRange(
 			new string[] {
-				// ... add public include paths required here ...
-			}
-			);
+				ModuleDirectory
+			});
 				
-		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				// ... add other private include paths required here ...
-			}
-			);
+			});
 			
-		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
-				// ... add other public dependencies that you statically link with here ...
-			}
-			);
+				"GameAI_Zombie",
+			});
 			
-		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -39,16 +36,13 @@ public class PfaffMathisZombieRuntime : ModuleRules
 				"Slate",
 				"SlateCore",
 				"AIModule",
-				// ... add private dependencies that you statically link with here ...	
-			}
-			);
-		
+				"NavigationSystem",
+				"ModularGameplay",
+			});
 		
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
-				// ... add any modules that your module loads dynamically here ...
-			}
-			);
+			});
 	}
 }

@@ -104,18 +104,40 @@ SteeringOutput Pursuit::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 SteeringOutput Evade::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput steering{};
-	constexpr float evadeDistance = 500.f;
+	constexpr float evadeDistance = 800.f;
 
-	FVector2D toTarget  = Target.Position - FVector2D(Agent.GetActorLocation());
-	float timeToTarget  = toTarget.Length() / FMath::Max(GetMaxSpeed(Agent), 1.f);
-	FVector2D predicted = Target.Position + Target.LinearVelocity * timeToTarget;
+	FVector2D AgentPos  = FVector2D(Agent.GetActorLocation());
+	FVector2D toTarget  = Target.Position - AgentPos;
 
-	if (toTarget.Length() < evadeDistance)
-		steering.LinearVelocity = FVector2D(Agent.GetActorLocation()) - predicted;
+	// Use combined speeds for more accurate prediction
+	float pursuerSpeed    = Target.LinearVelocity.Length();
+	float mySpeed         = FMath::Max(GetMaxSpeed(Agent), 1.f);
+	float combinedSpeed   = mySpeed + (pursuerSpeed > 0.f ? pursuerSpeed : mySpeed);
+	float timeToTarget    = toTarget.Length() / combinedSpeed;
+
+	FVector2D predicted   = Target.Position + Target.LinearVelocity * timeToTarget;
+	FVector2D toPredicted = predicted - AgentPos;
+
+	if (toPredicted.Length() < evadeDistance)
+	{
+		// Flee from predicted position (true evade)
+		steering.LinearVelocity = AgentPos - predicted;
+	}
+	else
+	{
+		// Outside evade range — still flee from current zombie position so we never stand still
+		steering.LinearVelocity = AgentPos - Target.Position;
+	}
 
 #if ENABLE_DRAW_DEBUG
+	DrawDebugCircle(Agent.GetWorld(), Agent.GetActorLocation(), evadeDistance, 16,
+		FColor::Orange, false, -1.f, 0, 2.f, FVector(0,1,0), FVector(1,0,0), false);
 	DrawDebugPoint(Agent.GetWorld(), FVector(predicted, 0), 10.f, FColor::Red, false, -1);
+	DrawDebugLine(Agent.GetWorld(), Agent.GetActorLocation(),
+		Agent.GetActorLocation() + FVector(FVector2D(Agent.GetVelocity()) / 3.f, 0),
+		FColor::Green, false, -1);
 #endif
+
 	return steering;
 }
 

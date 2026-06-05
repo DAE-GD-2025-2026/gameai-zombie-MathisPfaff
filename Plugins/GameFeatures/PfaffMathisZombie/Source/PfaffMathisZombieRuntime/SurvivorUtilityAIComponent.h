@@ -28,6 +28,7 @@ private:
 	UAScavengeAction*      ScavengeAction   = nullptr;
 	UASeekMedkitAction*    SeekMedkitAction = nullptr;
 	UASeekWeaponAction*    SeekWeaponAction = nullptr;
+	UASeekFoodAction*      SeekFoodAction   = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category="AI")
 	float EvadeMaxDistance = 1500.f;

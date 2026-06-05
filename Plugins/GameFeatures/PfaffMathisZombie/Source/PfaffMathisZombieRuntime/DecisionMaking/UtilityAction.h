@@ -143,96 +143,182 @@ private:
     Evade m_Evade;
 };
 
+inline bool InvHasType(UInventoryComponent* Inv, EItemType Type)
+{
+    if (!Inv) return false;
+    for (ABaseItem* Item : Inv->GetInventory())
+        if (Item && Item->GetItemType() == Type)
+            return true;
+    return false;
+}
+
+inline int InvGetFreeSlotForType(UInventoryComponent* Inv, EItemType Type)
+{
+    if (!Inv) return -1;
+    const TArray<ABaseItem*>& Items = Inv->GetInventory();
+    TArray<int> Slots;
+    switch (Type)
+    {
+    case EItemType::Pistol:  Slots = {0};    break;
+    case EItemType::Shotgun: Slots = {1};    break;
+    case EItemType::Medkit:  Slots = {2};    break;
+    case EItemType::Food:    Slots = {3, 4}; break;
+    default: return -1;
+    }
+    for (int Idx : Slots)
+        if (Idx < Items.Num() && Items[Idx] == nullptr)
+            return Idx;
+    return -1;
+}
+
+// ===========================================================================
+// Shared context for "seek a specific item" actions
+// bIsInHouse        — survivor is inside a house (boosts score slightly)
+// bItemInInventory  — already carrying one (kills score → action won't fire)
+// NormalizedDist    — 0=far/not seen, 1=right on top of it
+// ===========================================================================
+struct FSeekItemContext
+{
+    bool  bItemInInventory = false;
+    float NormalizedDist   = 0.f;   // 1 = at pickup range, 0 = not visible / far away
+};
+
+// ---------------------------------------------------------------------------
+// Base class shared by Medkit / Weapon / Food actions
+// ---------------------------------------------------------------------------
+class UASeekItemActionBase : public IUtilityAction
+{
+public:
+    FSeekItemContext                              Context;
+    std::vector<TConsideration<FSeekItemContext>> Considerations;
+
+    float Score() const override { return CalcScore(Considerations, Context); }
+
+    void OnEnter(ASurvivorPawn&) override {}
+    void OnExit (ASurvivorPawn&) override { MemoryTimer = 0.f; }  // clear on exit
+
+    void Execute(ASurvivorPawn& Agent, float DeltaTime) override
+    {
+        // Count down memory
+        if (MemoryTimer > 0.f)
+            MemoryTimer = FMath::Max(0.f, MemoryTimer - DeltaTime);
+
+        if (!TargetItem) return;
+
+        UInventoryComponent* Inv = Agent.GetComponentByClass<UInventoryComponent>();
+        if (!Inv) return;
+
+        const float DistSq = FVector::DistSquared(
+            Agent.GetActorLocation(), TargetItem->GetActorLocation());
+
+        if (DistSq <= GrabRadiusSq)
+        {
+            int Slot = InvGetFreeSlotForType(Inv, ItemTypeToGrab);
+            if (Slot != -1)
+                Inv->GrabItem(Slot, TargetItem);
+            TargetItem  = nullptr;
+            MemoryTimer = 0.f;
+        }
+    }
+
+    ISteeringBehavior* GetActiveBehavior() override { return &m_Arrive; }
+
+    // Called from TickComponent when item IS visible
+    void SetTarget(const FTargetData& T, ABaseItem* Item)
+    {
+        m_Arrive.SetTarget(T);
+        TargetItem  = Item;
+        MemoryTimer = MemoryDuration; // refresh memory
+    }
+
+    // Call every tick so NormalizedDist stays high while item is remembered
+    float GetMemoryDist() const { return MemoryTimer > 0.f ? 1.f : 0.f; }
+
+protected:
+    EItemType  ItemTypeToGrab  = EItemType::Garbage;
+    ABaseItem* TargetItem      = nullptr;
+    float      GrabRadiusSq    = 100.f * 100.f;
+    float      MemoryTimer     = 0.f;
+    float      MemoryDuration  = 5.f;   // seconds to keep targeting after losing sight
+
+    Arrive m_Arrive;
+};
+
 // ===========================================================================
 // SEEK MEDKIT ACTION
-// Context: health ratio (0=dead, 1=full), whether a medkit is visible
-// High urgency when health ≤ 30% and a medkit is perceived
 // ===========================================================================
-struct FSeekMedkitContext
-{
-    float NormalizedHealth    = 1.f;
-    bool  bMedkitVisible      = false;
-};
-
-class UASeekMedkitAction : public IUtilityAction
+class UASeekMedkitAction : public UASeekItemActionBase
 {
 public:
-    FSeekMedkitContext                              Context;
-    std::vector<TConsideration<FSeekMedkitContext>> Considerations;
-
     UASeekMedkitAction()
     {
-        Name = "SeekMedkit";
+        Name            = "SeekMedkit";
+        ItemTypeToGrab  = EItemType::Medkit;
 
+        // Fires hard when health is low AND medkit visible AND not already carried
         Considerations.push_back({
-            "LowHealth",
-            [](const FSeekMedkitContext& c){ return 1.f - c.NormalizedHealth; },
-            ECurveType::Exponential
+            "NoMedkitInInventory",
+            [](const FSeekItemContext& c){ return c.bItemInInventory ? 0.f : 1.f; },
+            ECurveType::Linear
         });
         Considerations.push_back({
-            "MedkitVisible",
-            [](const FSeekMedkitContext& c){ return c.bMedkitVisible ? 1.f : 0.f; },
+            "MedkitClose",
+            [](const FSeekItemContext& c){ return c.NormalizedDist; },
             ECurveType::Linear
         });
     }
-
-    float Score() const override { return CalcScore(Considerations, Context); }
-
-    void OnEnter(ASurvivorPawn&) override {}
-    void OnExit (ASurvivorPawn&) override {}
-    void Execute(ASurvivorPawn&, float)   override {}
-
-    ISteeringBehavior* GetActiveBehavior() override { return &m_Arrive; }
-    void SetTarget(const FTargetData& T) { m_Arrive.SetTarget(T); }
-
-private:
-    Arrive m_Arrive;
 };
 
 // ===========================================================================
-// SEEK WEAPON ACTION
-// Context: whether survivor has a weapon, whether a weapon is visible
-// Medium priority — pick up a weapon if seen and unarmed
+// SEEK WEAPON ACTION  (pistol + shotgun share one action; it prefers pistol
+//                      first, then shotgun if pistol slot is already filled)
 // ===========================================================================
-struct FSeekWeaponContext
-{
-    bool bHasWeapon     = false;
-    bool bWeaponVisible = false;
-};
-
-class UASeekWeaponAction : public IUtilityAction
+class UASeekWeaponAction : public UASeekItemActionBase
 {
 public:
-    FSeekWeaponContext                              Context;
-    std::vector<TConsideration<FSeekWeaponContext>> Considerations;
-
     UASeekWeaponAction()
     {
-        Name = "SeekWeapon";
+        Name           = "SeekWeapon";
+        ItemTypeToGrab = EItemType::Pistol; // updated dynamically in context update
 
         Considerations.push_back({
-            "Unarmed",
-            [](const FSeekWeaponContext& c){ return c.bHasWeapon ? 0.f : 1.f; },
+            "NoWeaponInInventory",
+            [](const FSeekItemContext& c){ return c.bItemInInventory ? 0.f : 1.f; },
             ECurveType::Linear
         });
         Considerations.push_back({
-            "WeaponVisible",
-            [](const FSeekWeaponContext& c){ return c.bWeaponVisible ? 1.f : 0.f; },
+            "WeaponClose",
+            [](const FSeekItemContext& c){ return c.NormalizedDist; },
             ECurveType::Linear
         });
     }
 
-    float Score() const override { return CalcScore(Considerations, Context); }
+    // Call this from the context update so GrabItem uses the right slot
+    void SetWeaponType(EItemType T) { ItemTypeToGrab = T; }
+};
 
-    void OnEnter(ASurvivorPawn&) override {}
-    void OnExit (ASurvivorPawn&) override {}
-    void Execute(ASurvivorPawn&, float)   override {}
+// ===========================================================================
+// SEEK FOOD ACTION
+// ===========================================================================
+class UASeekFoodAction : public UASeekItemActionBase
+{
+public:
+    UASeekFoodAction()
+    {
+        Name           = "SeekFood";
+        ItemTypeToGrab = EItemType::Food;
 
-    ISteeringBehavior* GetActiveBehavior() override { return &m_Arrive; }
-    void SetTarget(const FTargetData& T) { m_Arrive.SetTarget(T); }
-
-private:
-    Arrive m_Arrive;
+        Considerations.push_back({
+            "FoodSlotFree",
+            [](const FSeekItemContext& c){ return c.bItemInInventory ? 0.f : 1.f; },
+            ECurveType::Linear
+        });
+        Considerations.push_back({
+            "FoodClose",
+            [](const FSeekItemContext& c){ return c.NormalizedDist; },
+            ECurveType::Linear
+        });
+    }
 };
 
 // ===========================================================================
@@ -243,6 +329,7 @@ private:
 struct FScavengeContext
 {
     float NormalizedProximityToZombie = 0.f;
+    bool  bItemVisible                = false;
 };
 
 class UAScavengeAction : public IUtilityAction
@@ -260,6 +347,11 @@ public:
             [](const FScavengeContext& c){ return 1.f - c.NormalizedProximityToZombie; },
             ECurveType::Linear
         });
+        Considerations.push_back({
+            "NoItemVisible",
+            [](const FScavengeContext& c){ return c.bItemVisible ? 0.f : 1.f; },
+            ECurveType::Linear
+        });
     }
 
     float Score() const override { return CalcScore(Considerations, Context); }
@@ -272,9 +364,8 @@ public:
 
     void OnExit(ASurvivorPawn&) override {}
 
-    void Execute(ASurvivorPawn& Agent, float DeltaTime) override
+    void Execute(ASurvivorPawn& Agent, float /*DeltaTime*/) override
     {
-        // Bootstrap on very first tick if OnEnter was never called
         if (AllHouses.IsEmpty())
         {
             CollectHouses(Agent);
@@ -293,39 +384,9 @@ public:
 
         if (DistSq < ArrivalRadiusSq)
         {
-            TryPickUpItems(Agent);
             VisitedHouses.Add(CurrentTargetHouse);
             CurrentTargetHouse = nullptr;
             PickNextHouse(Agent);
-        }
-    }
-    
-    void TryPickUpItems(ASurvivorPawn& Agent)
-    {
-        UInventoryComponent* Inv = Agent.GetComponentByClass<UInventoryComponent>();
-        if (!Inv) return;
-
-        // Use a wider pickup sweep radius at the house (house bounds are large)
-        const float SweepRadius = 400.f;
-        const float SweepRadiusSq = SweepRadius * SweepRadius;
-        const FVector MyLoc = Agent.GetActorLocation();
-
-        for (TActorIterator<ABaseItem> It(Agent.GetWorld()); It; ++It)
-        {
-            ABaseItem* Item = *It;
-            if (!Item) continue;
-            if (Item->GetItemType() == EItemType::Garbage) continue;
-            if (FVector::DistSquared(MyLoc, Item->GetActorLocation()) > SweepRadiusSq) continue;
-
-            // Find a free slot for this item
-            for (int32 i = 0; i < Inv->GetInventoryCapacity(); ++i)
-            {
-                if (Inv->GetInventory()[i] == nullptr)
-                {
-                    Inv->GrabItem(i, Item);
-                    break; // next item
-                }
-            }
         }
     }
 

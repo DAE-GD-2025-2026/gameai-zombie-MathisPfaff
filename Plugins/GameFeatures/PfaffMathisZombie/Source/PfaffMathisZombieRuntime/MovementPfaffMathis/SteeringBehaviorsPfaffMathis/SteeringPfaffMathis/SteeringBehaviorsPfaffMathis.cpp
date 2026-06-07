@@ -23,7 +23,7 @@ static float GetMaxSpeed(ASurvivorPawn& Agent)
 }
 
 //SEEK
-SteeringOutput Seek::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput SeekPfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput steering{};
 	steering.LinearVelocity = Target.Position - GetPos(Agent);
@@ -37,7 +37,7 @@ SteeringOutput Seek::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 }
 
 //FLEE
-SteeringOutput Flee::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput FleePfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput steering{};
 	steering.LinearVelocity = -(Target.Position - GetPos(Agent));
@@ -49,7 +49,7 @@ SteeringOutput Flee::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 }
 
 //ARRIVE
-SteeringOutput Arrive::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput ArrivePfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput steering{};
 
@@ -70,7 +70,7 @@ SteeringOutput Arrive::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 }
 
 //FACE
-SteeringOutput Face::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput FacePfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput steering{};
 
@@ -85,7 +85,7 @@ SteeringOutput Face::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 }
 
 //PURSUIT
-SteeringOutput Pursuit::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput PursuitPfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput steering{};
 
@@ -101,7 +101,7 @@ SteeringOutput Pursuit::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 }
 
 //EVADE
-SteeringOutput Evade::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput EvadePfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput steering{};
 	constexpr float evadeDistance = 800.f;
@@ -142,7 +142,7 @@ SteeringOutput Evade::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 }
 
 //WANDER
-SteeringOutput Wander::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput WanderPfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput steering{};
 

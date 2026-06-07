@@ -24,12 +24,12 @@ private:
 	ASurvivorPawn*         SurvivorPawn    = nullptr;
 	UtilityAIComponentPfaffMathis     Brain;
 
-	UAEvadeZombieAction*   EvadeAction		= nullptr;
-	UAScavengeAction*      ScavengeAction   = nullptr;
-	UASeekMedkitAction*    SeekMedkitAction = nullptr;
-	UASeekWeaponAction*    SeekWeaponAction = nullptr;
-	UASeekFoodAction*      SeekFoodAction   = nullptr;
-	UAFightZombieAction* FightAction = nullptr;
+	UAEvadeZombieActionPfaffMathis*   EvadeAction		= nullptr;
+	UAScavengeActionPfaffMathis*      ScavengeAction   = nullptr;
+	UASeekMedkitActionPfaffMathis*    SeekMedkitAction = nullptr;
+	UASeekWeaponActionPfaffMathis*    SeekWeaponAction = nullptr;
+	UASeekFoodActionPfaffMathis*      SeekFoodAction   = nullptr;
+	UAFightZombieActionPfaffMathis* FightAction = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category="AI")
 	float FightMaxDistance = 600.f;

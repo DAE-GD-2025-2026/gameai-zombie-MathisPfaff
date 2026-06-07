@@ -1,48 +1,48 @@
 #pragma once
 
-#include "MovementPfaffMathis/SteeringBehaviors/SteeringHelpersPfaffMathis.h"
+#include "MovementPfaffMathis/SteeringBehaviorsPfaffMathis/SteeringHelpersPfaffMathis.h"
 #include "Kismet/KismetMathLibrary.h"
 
 class ASurvivorPawn;
 
-class ISteeringBehavior
+class ISteeringBehaviorPfaffMathis
 {
 public:
-	ISteeringBehavior() = default;
-	virtual ~ISteeringBehavior() = default;
+	ISteeringBehaviorPfaffMathis() = default;
+	virtual ~ISteeringBehaviorPfaffMathis() = default;
 
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) = 0;
 
 	void SetTarget(const FTargetData& NewTarget) { Target = NewTarget; }
 
-	template<class T, std::enable_if_t<std::is_base_of_v<ISteeringBehavior, T>>* = nullptr>
+	template<class T, std::enable_if_t<std::is_base_of_v<ISteeringBehaviorPfaffMathis, T>>* = nullptr>
 	T* As() { return static_cast<T*>(this); }
 
 protected:
 	FTargetData Target;
 };
 
-class Seek : public ISteeringBehavior
+class SeekPfaffMathis : public ISteeringBehaviorPfaffMathis
 {
 public:
-	Seek() = default;
-	virtual ~Seek() override = default;
+	SeekPfaffMathis() = default;
+	virtual ~SeekPfaffMathis() override = default;
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 };
 
-class Flee : public ISteeringBehavior
+class FleePfaffMathis : public ISteeringBehaviorPfaffMathis
 {
 public:
-	Flee() = default;
-	virtual ~Flee() override = default;
+	FleePfaffMathis() = default;
+	virtual ~FleePfaffMathis() override = default;
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 };
 
-class Arrive : public ISteeringBehavior
+class ArrivePfaffMathis : public ISteeringBehaviorPfaffMathis
 {
 public:
-	Arrive() = default;
-	virtual ~Arrive() override = default;
+	ArrivePfaffMathis() = default;
+	virtual ~ArrivePfaffMathis() override = default;
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 
 	void SetTargetRadius(float radius) { TargetRadius = radius; }
@@ -55,35 +55,35 @@ private:
 	float SpeedScale  { 1.f   };
 };
 
-class Face : public ISteeringBehavior
+class FacePfaffMathis : public ISteeringBehaviorPfaffMathis
 {
 public:
-	Face() = default;
-	virtual ~Face() override = default;
+	FacePfaffMathis() = default;
+	virtual ~FacePfaffMathis() override = default;
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 };
 
-class Pursuit : public ISteeringBehavior
+class PursuitPfaffMathis : public ISteeringBehaviorPfaffMathis
 {
 public:
-	Pursuit() = default;
-	virtual ~Pursuit() override = default;
+	PursuitPfaffMathis() = default;
+	virtual ~PursuitPfaffMathis() override = default;
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 };
 
-class Evade : public ISteeringBehavior
+class EvadePfaffMathis : public ISteeringBehaviorPfaffMathis
 {
 public:
-	Evade() = default;
-	virtual ~Evade() override = default;
+	EvadePfaffMathis() = default;
+	virtual ~EvadePfaffMathis() override = default;
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 };
 
-class Wander : public Seek
+class WanderPfaffMathis : public SeekPfaffMathis
 {
 public:
-	Wander() = default;
-	virtual ~Wander() override = default;
+	WanderPfaffMathis() = default;
+	virtual ~WanderPfaffMathis() override = default;
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 
 	void SetWanderOffset(float offset)   { m_OffsetDistance = offset; }

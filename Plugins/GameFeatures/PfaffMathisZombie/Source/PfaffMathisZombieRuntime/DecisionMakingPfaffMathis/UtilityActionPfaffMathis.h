@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MovementPfaffMathis/SteeringBehaviors/Steering/SteeringBehaviorsPfaffMathis.h"
+#include "MovementPfaffMathis/SteeringBehaviorsPfaffMathis/SteeringPfaffMathis/SteeringBehaviorsPfaffMathis.h"
 #include <functional>
 #include <vector>
 #include <string>
@@ -13,7 +13,7 @@
 #include "GameAI_Zombie/Common/InventoryComponent.h"
 #include "EngineUtils.h"
 #include "GameAI_Zombie/Village/House/House.h"
-#include "MovementPfaffMathis/SteeringBehaviors/PathFollow/PathFollowSteeringBehaviorPfaffMathis.h"
+#include "MovementPfaffMathis/SteeringBehaviorsPfaffMathis/PathFollowPfaffMathis/PathFollowSteeringBehaviorPfaffMathis.h"
 
 class ASurvivorPawn;
 
@@ -89,7 +89,7 @@ public:
     virtual void               Execute(ASurvivorPawn&, float)       = 0;
     virtual void               OnEnter(ASurvivorPawn&)              = 0;
     virtual void               OnExit (ASurvivorPawn&)              = 0;
-    virtual ISteeringBehavior* GetActiveBehavior()                  = 0;
+    virtual ISteeringBehaviorPfaffMathis* GetActiveBehavior()                  = 0;
 };
 
 template<typename TContext>
@@ -113,13 +113,13 @@ struct FEvadeZombieContext
     bool bHasWeapon = false;
 };
 
-class UAEvadeZombieAction : public IUtilityActionPfaffMathis
+class UAEvadeZombieActionPfaffMathis : public IUtilityActionPfaffMathis
 {
 public:
     FEvadeZombieContext                              Context;
     std::vector<TConsideration<FEvadeZombieContext>> Considerations;
 
-    UAEvadeZombieAction()
+    UAEvadeZombieActionPfaffMathis()
     {
         Name = "EvadeZombie";
         Considerations.push_back({
@@ -193,15 +193,15 @@ public:
         SetZombieTargets(S);
     }
 
-    ISteeringBehavior* GetActiveBehavior() override { return &m_MultiEvade; }
+    ISteeringBehaviorPfaffMathis* GetActiveBehavior() override { return &m_MultiEvade; }
 
 private:
-    struct FMultiEvadeSteering : public ISteeringBehavior
+    struct FMultiEvadeSteering : public ISteeringBehaviorPfaffMathis
     {
-        std::vector<Evade>*   Evades  = nullptr;
+        std::vector<EvadePfaffMathis>*   Evades  = nullptr;
         TArray<FTargetData>*  Targets = nullptr;
 
-        void SetZombies(std::vector<Evade>* E, TArray<FTargetData>* T)
+        void SetZombies(std::vector<EvadePfaffMathis>* E, TArray<FTargetData>* T)
         {
             Evades = E; Targets = T;
         }
@@ -247,7 +247,7 @@ private:
         }
     };
 
-    std::vector<Evade>    m_Evades;
+    std::vector<EvadePfaffMathis>    m_Evades;
     TArray<FTargetData>   ZombieTargets;
     FMultiEvadeSteering   m_MultiEvade;
 };
@@ -262,13 +262,13 @@ struct FFightZombieContext
     float HealthRatio                 = 1.f;
 };
 
-class UAFightZombieAction : public IUtilityActionPfaffMathis
+class UAFightZombieActionPfaffMathis : public IUtilityActionPfaffMathis
 {
 public:
     FFightZombieContext                              Context;
     std::vector<TConsideration<FFightZombieContext>> Considerations;
 
-    UAFightZombieAction()
+    UAFightZombieActionPfaffMathis()
     {
         Name = "FightZombie";
 
@@ -312,12 +312,12 @@ public:
             FireCooldown = PistolCooldown;
     }
 
-    ISteeringBehavior* GetActiveBehavior() override { return &m_Face; }
+    ISteeringBehaviorPfaffMathis* GetActiveBehavior() override { return &m_Face; }
 
     void SetZombieTarget(const FTargetData& T) { m_Face.SetTarget(T); }
 
 private:
-    Face  m_Face;
+    FacePfaffMathis  m_Face;
     float FireCooldown    = 0.f;
     float PistolCooldown  = 0.1f;  
     float ShotgunCooldown = 0.1f;
@@ -360,7 +360,7 @@ struct FSeekItemContext
     float NormalizedDist   = 0.f;
 };
 
-class UASeekItemActionBase : public IUtilityActionPfaffMathis
+class UASeekItemActionBasePfaffMathis : public IUtilityActionPfaffMathis
 {
 public:
     FSeekItemContext                              Context;
@@ -399,7 +399,7 @@ public:
         }
     }
 
-    ISteeringBehavior* GetActiveBehavior() override { return &m_Arrive; }
+    ISteeringBehaviorPfaffMathis* GetActiveBehavior() override { return &m_Arrive; }
 
     void SetTarget(const FTargetData& T, ABaseItem* Item)
     {
@@ -417,16 +417,16 @@ protected:
     float      MemoryTimer     = 0.f;
     float      MemoryDuration  = 5.f;
 
-    Arrive m_Arrive;
+    ArrivePfaffMathis m_Arrive;
 };
 
 // ===========================================================================
 // SEEK MEDKIT ACTION
 // ===========================================================================
-class UASeekMedkitAction : public UASeekItemActionBase
+class UASeekMedkitActionPfaffMathis : public UASeekItemActionBasePfaffMathis
 {
 public:
-    UASeekMedkitAction()
+    UASeekMedkitActionPfaffMathis()
     {
         Name            = "SeekMedkit";
         ItemTypeToGrab  = EItemType::Medkit;
@@ -448,10 +448,10 @@ public:
 // ===========================================================================
 // SEEK WEAPON ACTION
 // ===========================================================================
-class UASeekWeaponAction : public UASeekItemActionBase
+class UASeekWeaponActionPfaffMathis : public UASeekItemActionBasePfaffMathis
 {
 public:
-    UASeekWeaponAction()
+    UASeekWeaponActionPfaffMathis()
     {
         Name           = "SeekWeapon";
         ItemTypeToGrab = EItemType::Pistol;
@@ -474,10 +474,10 @@ public:
 // ===========================================================================
 // SEEK FOOD ACTION
 // ===========================================================================
-class UASeekFoodAction : public UASeekItemActionBase
+class UASeekFoodActionPfaffMathis : public UASeekItemActionBasePfaffMathis
 {
 public:
-    UASeekFoodAction()
+    UASeekFoodActionPfaffMathis()
     {
         Name           = "SeekFood";
         ItemTypeToGrab = EItemType::Food;
@@ -504,7 +504,7 @@ struct FScavengeContext
     bool  bItemVisible                = false;
 };
 
-class UAScavengeAction : public IUtilityActionPfaffMathis
+class UAScavengeActionPfaffMathis : public IUtilityActionPfaffMathis
 {
 public:
     FScavengeContext                              Context;
@@ -520,7 +520,7 @@ public:
         KnownHouses.RemoveAll([](AHouse* H){ return !IsValid(H); });
     }
 
-    UAScavengeAction()
+    UAScavengeActionPfaffMathis()
     {
         Name = "Scavenge";
 
@@ -598,15 +598,15 @@ public:
         }
     }
 
-    ISteeringBehavior* GetActiveBehavior() override
+    ISteeringBehaviorPfaffMathis* GetActiveBehavior() override
     {
-        return bUseWander ? static_cast<ISteeringBehavior*>(&m_Wander)
-                          : static_cast<ISteeringBehavior*>(&m_PathFollow);
+        return bUseWander ? static_cast<ISteeringBehaviorPfaffMathis*>(&m_Wander)
+                          : static_cast<ISteeringBehaviorPfaffMathis*>(&m_PathFollow);
     }
     
 private:
-    PathFollow      m_PathFollow;
-    Wander          m_Wander;
+    PathFollowPfaffMathis      m_PathFollow;
+    WanderPfaffMathis          m_Wander;
     TArray<AHouse*> KnownHouses;
     TMap<AHouse*, float> HouseCooldowns;
     float HouseRevisitCooldown = 30.f;

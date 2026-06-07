@@ -1,27 +1,27 @@
 #include "PathFollowSteeringBehaviorPfaffMathis.h"
 #include "GameAI_Zombie/Survivor/SurvivorPawn.h"
 
-PathFollow::PathFollow()
+PathFollowPfaffMathis::PathFollowPfaffMathis()
 {
-	pSeek = new Seek();
-	pArrive = new Arrive();
+	pSeek = new SeekPfaffMathis();
+	pArrive = new ArrivePfaffMathis();
 	pArrive->SetTargetRadius(10.0f);
 }
 
-PathFollow::~PathFollow()
+PathFollowPfaffMathis::~PathFollowPfaffMathis()
 {
 	delete pArrive;
 	delete pSeek;
 }
 
-void PathFollow::SetPath(const TArray<FVector>& path)
+void PathFollowPfaffMathis::SetPath(const TArray<FVector>& path)
 {
 	pathVec = path;
 	currentPathIndex = -1;
 	GotoNextPathPoint();
 }
 
-SteeringOutput PathFollow::CalculateSteering(float DeltaTime, ASurvivorPawn& Agent)
+SteeringOutput PathFollowPfaffMathis::CalculateSteering(float DeltaTime, ASurvivorPawn& Agent)
 {
 	if (currentPathIndex < pathVec.Num())
 	{
@@ -38,7 +38,7 @@ SteeringOutput PathFollow::CalculateSteering(float DeltaTime, ASurvivorPawn& Age
 	return SteeringOutput{};
 }
 
-void PathFollow::GotoNextPathPoint()
+void PathFollowPfaffMathis::GotoNextPathPoint()
 {
 	++currentPathIndex;
 	if (currentPathIndex >= pathVec.Num()) return;

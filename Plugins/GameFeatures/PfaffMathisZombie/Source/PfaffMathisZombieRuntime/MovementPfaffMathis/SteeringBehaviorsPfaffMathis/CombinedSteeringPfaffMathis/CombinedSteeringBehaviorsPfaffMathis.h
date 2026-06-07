@@ -1,30 +1,30 @@
 #pragma once
 #include <vector>
 
-#include "../Steering/SteeringBehaviorsPfaffMathis.h"
+#include "MovementPfaffMathis/SteeringBehaviorsPfaffMathis/SteeringPfaffMathis/SteeringBehaviorsPfaffMathis.h"
 
 //****************
 //BLENDED STEERING
-class BlendedSteering final: public ISteeringBehavior
+class BlendedSteeringPfaffMathis final: public ISteeringBehaviorPfaffMathis
 {
 public:
 	struct WeightedBehavior
 	{
-		ISteeringBehavior* pBehavior = nullptr;
+		ISteeringBehaviorPfaffMathis* pBehavior = nullptr;
 		float Weight = 0.f;
 
-		WeightedBehavior(ISteeringBehavior* const pBehavior, float Weight) :
+		WeightedBehavior(ISteeringBehaviorPfaffMathis* const pBehavior, float Weight) :
 			pBehavior(pBehavior),
 			Weight(Weight)
 		{};
 	};
 
-	BlendedSteering(const std::vector<WeightedBehavior>& WeightedBehaviors);
+	BlendedSteeringPfaffMathis(const std::vector<WeightedBehavior>& WeightedBehaviors);
 
 	void AddBehaviour(const WeightedBehavior& WeightedBehavior) { WeightedBehaviors.push_back(WeightedBehavior); }
 	virtual SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 
-	float* GetWeight(ISteeringBehavior* const SteeringBehavior);
+	float* GetWeight(ISteeringBehaviorPfaffMathis* const SteeringBehavior);
 	
 	// returns a reference to the weighted behaviors, can be used to adjust weighting. Is not intended to alter the behaviors themselves.
 	std::vector<WeightedBehavior>& GetWeightedBehaviorsRef() { return WeightedBehaviors; }
@@ -37,18 +37,18 @@ private:
 
 //*****************
 //PRIORITY STEERING
-class PrioritySteering final: public ISteeringBehavior
+class PrioritySteeringPfaffMathis final: public ISteeringBehaviorPfaffMathis
 {
 public:
-	PrioritySteering(const std::vector<ISteeringBehavior*>& priorityBehaviors)
+	PrioritySteeringPfaffMathis(const std::vector<ISteeringBehaviorPfaffMathis*>& priorityBehaviors)
 		:m_PriorityBehaviors(priorityBehaviors) 
 	{}
 
-	void AddBehaviour(ISteeringBehavior* const pBehavior) { m_PriorityBehaviors.push_back(pBehavior); }
+	void AddBehaviour(ISteeringBehaviorPfaffMathis* const pBehavior) { m_PriorityBehaviors.push_back(pBehavior); }
 	SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override;
 
 private:
-	std::vector<ISteeringBehavior*> m_PriorityBehaviors = {};
+	std::vector<ISteeringBehaviorPfaffMathis*> m_PriorityBehaviors = {};
 
 	// using ISteeringBehavior::SetTarget; // made private because targets need to be set on the individual behaviors, not the combined behavior
 };

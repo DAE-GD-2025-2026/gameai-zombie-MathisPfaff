@@ -3,13 +3,13 @@
 #include <algorithm>
 #include "GameAI_Zombie/Survivor/SurvivorPawn.h"
 
-BlendedSteering::BlendedSteering(const std::vector<WeightedBehavior>& WeightedBehaviors)
+BlendedSteeringPfaffMathis::BlendedSteeringPfaffMathis(const std::vector<WeightedBehavior>& WeightedBehaviors)
 	:WeightedBehaviors(WeightedBehaviors)
 {};
 
 //****************
 //BLENDED STEERING
-SteeringOutput BlendedSteering::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput BlendedSteeringPfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput BlendedSteering = {};
 	float TotalWeight = 0.f;
@@ -41,7 +41,7 @@ SteeringOutput BlendedSteering::CalculateSteering(float DeltaT, ASurvivorPawn& A
 	return BlendedSteering;
 }
 
-float* BlendedSteering::GetWeight(ISteeringBehavior* const SteeringBehavior)
+float* BlendedSteeringPfaffMathis::GetWeight(ISteeringBehaviorPfaffMathis* const SteeringBehavior)
 {
 	auto it = find_if(WeightedBehaviors.begin(),
 		WeightedBehaviors.end(),
@@ -59,11 +59,11 @@ float* BlendedSteering::GetWeight(ISteeringBehavior* const SteeringBehavior)
 
 //*****************
 //PRIORITY STEERING
-SteeringOutput PrioritySteering::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
+SteeringOutput PrioritySteeringPfaffMathis::CalculateSteering(float DeltaT, ASurvivorPawn& Agent)
 {
 	SteeringOutput Steering = {};
 
-	for (ISteeringBehavior* const pBehavior : m_PriorityBehaviors)
+	for (ISteeringBehaviorPfaffMathis* const pBehavior : m_PriorityBehaviors)
 	{
 		Steering = pBehavior->CalculateSteering(DeltaT, Agent);
 

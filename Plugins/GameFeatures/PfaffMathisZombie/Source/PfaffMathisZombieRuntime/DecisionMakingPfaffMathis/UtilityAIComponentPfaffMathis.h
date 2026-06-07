@@ -45,7 +45,7 @@ public:
 			CurrentAction->Execute(Agent, DeltaTime);
 	}
 
-	ISteeringBehavior* GetActiveBehavior() const
+	ISteeringBehaviorPfaffMathis* GetActiveBehavior() const
 	{
 		return CurrentAction ? CurrentAction->GetActiveBehavior() : nullptr;
 	}

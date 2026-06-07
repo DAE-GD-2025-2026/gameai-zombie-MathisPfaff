@@ -21,12 +21,12 @@ void USurvivorUtilityAIComponentPfaffMathis::BeginPlay()
     if (AAIController* Controller = Cast<AAIController>(GetOwner()))
         SurvivorPawn = Cast<ASurvivorPawn>(Controller->GetPawn());
 
-    EvadeAction      = Brain.AddAction(std::make_unique<UAEvadeZombieAction>());
-    ScavengeAction   = Brain.AddAction(std::make_unique<UAScavengeAction>());
-    SeekMedkitAction = Brain.AddAction(std::make_unique<UASeekMedkitAction>());
-    SeekWeaponAction = Brain.AddAction(std::make_unique<UASeekWeaponAction>());
-    SeekFoodAction   = Brain.AddAction(std::make_unique<UASeekFoodAction>());
-    FightAction      = Brain.AddAction(std::make_unique<UAFightZombieAction>());
+    EvadeAction      = Brain.AddAction(std::make_unique<UAEvadeZombieActionPfaffMathis>());
+    ScavengeAction   = Brain.AddAction(std::make_unique<UAScavengeActionPfaffMathis>());
+    SeekMedkitAction = Brain.AddAction(std::make_unique<UASeekMedkitActionPfaffMathis>());
+    SeekWeaponAction = Brain.AddAction(std::make_unique<UASeekWeaponActionPfaffMathis>());
+    SeekFoodAction   = Brain.AddAction(std::make_unique<UASeekFoodActionPfaffMathis>());
+    FightAction      = Brain.AddAction(std::make_unique<UAFightZombieActionPfaffMathis>());
 }
 
 void USurvivorUtilityAIComponentPfaffMathis::TickComponent(float DeltaTime, ELevelTick TickType,
@@ -215,7 +215,7 @@ void USurvivorUtilityAIComponentPfaffMathis::TickComponent(float DeltaTime, ELev
 
     Brain.Update(*SurvivorPawn, DeltaTime);
 
-    if (ISteeringBehavior* Active = Brain.GetActiveBehavior())
+    if (ISteeringBehaviorPfaffMathis* Active = Brain.GetActiveBehavior())
     {
         SteeringOutput Output = Active->CalculateSteering(DeltaTime, *SurvivorPawn);
 

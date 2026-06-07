@@ -319,8 +319,8 @@ public:
 private:
     Face  m_Face;
     float FireCooldown    = 0.f;
-    float PistolCooldown  = 0.3f;  
-    float ShotgunCooldown = 0.5f;
+    float PistolCooldown  = 0.1f;  
+    float ShotgunCooldown = 0.1f;
 };
 
 inline bool InvHasType(UInventoryComponent* Inv, EItemType Type)
@@ -609,7 +609,7 @@ private:
     Wander          m_Wander;
     TArray<AHouse*> KnownHouses;
     TMap<AHouse*, float> HouseCooldowns;
-    float HouseRevisitCooldown = 120.f;
+    float HouseRevisitCooldown = 30.f;
     AHouse*         CurrentTargetHouse = nullptr;
     float           ArrivalRadiusSq    = 350.f * 350.f;
     bool            bUseWander         = false;

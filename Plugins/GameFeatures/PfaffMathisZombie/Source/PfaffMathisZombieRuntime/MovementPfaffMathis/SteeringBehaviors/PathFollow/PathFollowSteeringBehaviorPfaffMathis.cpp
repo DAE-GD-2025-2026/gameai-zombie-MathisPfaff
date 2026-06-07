@@ -1,4 +1,4 @@
-#include "PathFollowSteeringBehavior.h"
+#include "PathFollowSteeringBehaviorPfaffMathis.h"
 #include "GameAI_Zombie/Survivor/SurvivorPawn.h"
 
 PathFollow::PathFollow()

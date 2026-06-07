@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-#include "../Steering/SteeringBehaviors.h"
+#include "../Steering/SteeringBehaviorsPfaffMathis.h"
 
 //****************
 //BLENDED STEERING

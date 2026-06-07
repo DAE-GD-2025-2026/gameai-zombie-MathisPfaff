@@ -1,21 +1,21 @@
-﻿#include "StudentPerceptor.h"
+﻿#include "StudentPerceptorPfaffMathis.h"
 #include "GameFramework/Pawn.h"
 #include "GameAI_Zombie/Zombies/BaseZombie.h"
 
-UStudentPerceptor::UStudentPerceptor()
+UStudentPerceptorPfaffMathis::UStudentPerceptorPfaffMathis()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UStudentPerceptor::BeginPlay()
+void UStudentPerceptorPfaffMathis::BeginPlay()
 {
 	Super::BeginPlay();
 
 	if (auto* PerceptionComp = GetOwner()->GetComponentByClass<UAIPerceptionComponent>())
-		PerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &UStudentPerceptor::OnPerceptionUpdated);
+		PerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &UStudentPerceptorPfaffMathis::OnPerceptionUpdated);
 }
 
-void UStudentPerceptor::TickComponent(float DeltaTime, ELevelTick TickType,
+void UStudentPerceptorPfaffMathis::TickComponent(float DeltaTime, ELevelTick TickType,
 	FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -48,7 +48,7 @@ void UStudentPerceptor::TickComponent(float DeltaTime, ELevelTick TickType,
 	}
 }
 
-void UStudentPerceptor::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
+void UStudentPerceptorPfaffMathis::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {
 	if (Stimulus.WasSuccessfullySensed())
 	{

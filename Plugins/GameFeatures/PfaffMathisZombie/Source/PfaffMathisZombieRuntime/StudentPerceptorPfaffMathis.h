@@ -6,15 +6,15 @@
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISenseConfig_Damage.h"
 #include "Perception/AISense_Damage.h"
-#include "StudentPerceptor.generated.h"
+#include "StudentPerceptorPfaffMathis.generated.h"
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PFAFFMATHISZOMBIERUNTIME_API UStudentPerceptor : public UActorComponent
+class PFAFFMATHISZOMBIERUNTIME_API UStudentPerceptorPfaffMathis : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UStudentPerceptor();
+	UStudentPerceptorPfaffMathis();
 
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,

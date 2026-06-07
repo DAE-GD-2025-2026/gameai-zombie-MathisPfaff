@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "SteeringHelpers.generated.h"
+#include "SteeringHelpersPfaffMathis.generated.h"
 
 //SteeringParams (alias TargetData)
 USTRUCT(BlueprintType)

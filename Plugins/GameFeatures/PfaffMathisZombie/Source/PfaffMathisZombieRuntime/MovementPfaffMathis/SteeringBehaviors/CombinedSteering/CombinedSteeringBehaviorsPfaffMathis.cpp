@@ -1,5 +1,5 @@
 
-#include "CombinedSteeringBehaviors.h"
+#include "CombinedSteeringBehaviorsPfaffMathis.h"
 #include <algorithm>
 #include "GameAI_Zombie/Survivor/SurvivorPawn.h"
 

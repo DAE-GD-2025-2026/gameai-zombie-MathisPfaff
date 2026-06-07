@@ -1,12 +1,12 @@
 #pragma once
 
-#include "UtilityAction.h"
+#include "UtilityActionPfaffMathis.h"
 #include <memory>
 #include <vector>
 
 class ASurvivorPawn;
 
-class UtilityAIComponent
+class UtilityAIComponentPfaffMathis
 {
 public:
 	template<typename T>
@@ -19,7 +19,7 @@ public:
 
 	void Update(ASurvivorPawn& Agent, float DeltaTime)
 	{
-		IUtilityAction* Best      = nullptr;
+		IUtilityActionPfaffMathis* Best      = nullptr;
 		float           BestScore = -1.f;
 
 		for (auto& Action : Actions)
@@ -56,6 +56,6 @@ public:
 	}
 
 private:
-	std::vector<std::unique_ptr<IUtilityAction>> Actions;
-	IUtilityAction* CurrentAction = nullptr;
+	std::vector<std::unique_ptr<IUtilityActionPfaffMathis>> Actions;
+	IUtilityActionPfaffMathis* CurrentAction = nullptr;
 };

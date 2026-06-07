@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Movement/SteeringBehaviors/Steering/SteeringBehaviors.h"
+#include "MovementPfaffMathis/SteeringBehaviors/Steering/SteeringBehaviorsPfaffMathis.h"
 #include <functional>
 #include <vector>
 #include <string>
-#include "StudentPerceptor.h"
+#include "StudentPerceptorPfaffMathis.h"
 #include "GameAI_Zombie/Items/BaseItem.h"
 #include "GameAI_Zombie/Items/ItemType.h"
 #include "GameAI_Zombie/Common/HealthComponent.h"
@@ -13,7 +13,7 @@
 #include "GameAI_Zombie/Common/InventoryComponent.h"
 #include "EngineUtils.h"
 #include "GameAI_Zombie/Village/House/House.h"
-#include "Movement/SteeringBehaviors/PathFollow/PathFollowSteeringBehavior.h"
+#include "MovementPfaffMathis/SteeringBehaviors/PathFollow/PathFollowSteeringBehaviorPfaffMathis.h"
 
 class ASurvivorPawn;
 
@@ -79,11 +79,11 @@ struct TConsideration
 // ===========================================================================
 // Base action
 // ===========================================================================
-class IUtilityAction
+class IUtilityActionPfaffMathis
 {
 public:
     std::string Name;
-    virtual ~IUtilityAction() = default;
+    virtual ~IUtilityActionPfaffMathis() = default;
 
     virtual float              Score()                        const = 0;
     virtual void               Execute(ASurvivorPawn&, float)       = 0;
@@ -113,7 +113,7 @@ struct FEvadeZombieContext
     bool bHasWeapon = false;
 };
 
-class UAEvadeZombieAction : public IUtilityAction
+class UAEvadeZombieAction : public IUtilityActionPfaffMathis
 {
 public:
     FEvadeZombieContext                              Context;
@@ -138,7 +138,7 @@ public:
 
     void OnEnter(ASurvivorPawn& Agent) override
     {
-        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StartScanning();
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptorPfaffMathis>()) P->StartScanning();
     
         if (UStaminaComponent* ST = Agent.GetComponentByClass<UStaminaComponent>())
             if (ST->GetCurrentStamina() > 0.f)
@@ -262,7 +262,7 @@ struct FFightZombieContext
     float HealthRatio                 = 1.f;
 };
 
-class UAFightZombieAction : public IUtilityAction
+class UAFightZombieAction : public IUtilityActionPfaffMathis
 {
 public:
     FFightZombieContext                              Context;
@@ -294,7 +294,7 @@ public:
     void OnEnter(ASurvivorPawn& Agent) override
     {
         FireCooldown = 0.f;
-        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StopScanning();
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptorPfaffMathis>()) P->StopScanning();
     }
     void OnExit(ASurvivorPawn& Agent) override {}
 
@@ -360,7 +360,7 @@ struct FSeekItemContext
     float NormalizedDist   = 0.f;
 };
 
-class UASeekItemActionBase : public IUtilityAction
+class UASeekItemActionBase : public IUtilityActionPfaffMathis
 {
 public:
     FSeekItemContext                              Context;
@@ -370,7 +370,7 @@ public:
 
     void OnEnter(ASurvivorPawn& Agent) override
     {
-        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StopScanning();
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptorPfaffMathis>()) P->StopScanning();
     }
     void OnExit(ASurvivorPawn& Agent) override
     {
@@ -504,7 +504,7 @@ struct FScavengeContext
     bool  bItemVisible                = false;
 };
 
-class UAScavengeAction : public IUtilityAction
+class UAScavengeAction : public IUtilityActionPfaffMathis
 {
 public:
     FScavengeContext                              Context;
@@ -540,13 +540,13 @@ public:
 
     void OnEnter(ASurvivorPawn& Agent) override
     {
-        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StartScanning();
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptorPfaffMathis>()) P->StartScanning();
         PickNextTarget(Agent);
     }
     
     void OnExit(ASurvivorPawn& Agent) override
     {
-        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StopScanning();
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptorPfaffMathis>()) P->StopScanning();
     }
 
     void Execute(ASurvivorPawn& Agent, float DeltaTime) override
@@ -584,7 +584,7 @@ public:
         if (bShouldWander != bUseWander)
         {
             bUseWander = bShouldWander;
-            if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>())
+            if (auto* P = Agent.GetComponentByClass<UStudentPerceptorPfaffMathis>())
             {
                 if (bUseWander)
                     P->StopScanning();

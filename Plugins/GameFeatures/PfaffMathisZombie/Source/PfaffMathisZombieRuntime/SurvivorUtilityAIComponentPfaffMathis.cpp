@@ -1,6 +1,6 @@
-#include "SurvivorUtilityAIComponent.h"
+#include "SurvivorUtilityAIComponentPfaffMathis.h"
 #include "AIController.h"
-#include "StudentPerceptor.h"
+#include "StudentPerceptorPfaffMathis.h"
 #include "GameAI_Zombie/Survivor/SurvivorPawn.h"
 #include "GameAI_Zombie/Common/HealthComponent.h"
 #include "GameAI_Zombie/Common/InventoryComponent.h"
@@ -9,12 +9,12 @@
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameAI_Zombie/Zombies/BaseZombie.h"
 
-USurvivorUtilityAIComponent::USurvivorUtilityAIComponent()
+USurvivorUtilityAIComponentPfaffMathis::USurvivorUtilityAIComponentPfaffMathis()
 {
     PrimaryComponentTick.bCanEverTick = true;
 }
 
-void USurvivorUtilityAIComponent::BeginPlay()
+void USurvivorUtilityAIComponentPfaffMathis::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -29,7 +29,7 @@ void USurvivorUtilityAIComponent::BeginPlay()
     FightAction      = Brain.AddAction(std::make_unique<UAFightZombieAction>());
 }
 
-void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+void USurvivorUtilityAIComponentPfaffMathis::TickComponent(float DeltaTime, ELevelTick TickType,
     FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -37,7 +37,7 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
     
     const FVector MyLoc = SurvivorPawn->GetActorLocation();
 
-    UStudentPerceptor* Perceptor = SurvivorPawn->GetComponentByClass<UStudentPerceptor>();
+    UStudentPerceptorPfaffMathis* Perceptor = SurvivorPawn->GetComponentByClass<UStudentPerceptorPfaffMathis>();
     const TArray<AActor*>& Perceived = Perceptor ? Perceptor->GetPerceivedActors() : TArray<AActor*>{};
 
     float HealthRatio = 1.f;

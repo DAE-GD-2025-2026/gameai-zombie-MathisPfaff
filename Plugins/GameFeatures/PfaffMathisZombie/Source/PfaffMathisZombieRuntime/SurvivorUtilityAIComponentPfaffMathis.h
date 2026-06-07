@@ -1,20 +1,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DecisionMaking/UtilityAIComponent.h"
-#include "DecisionMaking/UtilityAction.h"
+#include "DecisionMakingPfaffMathis/UtilityAIComponentPfaffMathis.h"
+#include "DecisionMakingPfaffMathis/UtilityActionPfaffMathis.h"
 #include "Components/ActorComponent.h"
-#include "SurvivorUtilityAIComponent.generated.h"
+#include "SurvivorUtilityAIComponentPfaffMathis.generated.h"
 
 class ASurvivorPawn;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PFAFFMATHISZOMBIERUNTIME_API USurvivorUtilityAIComponent : public UActorComponent
+class PFAFFMATHISZOMBIERUNTIME_API USurvivorUtilityAIComponentPfaffMathis : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	USurvivorUtilityAIComponent();
+	USurvivorUtilityAIComponentPfaffMathis();
 
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
@@ -22,7 +22,7 @@ public:
 
 private:
 	ASurvivorPawn*         SurvivorPawn    = nullptr;
-	UtilityAIComponent     Brain;
+	UtilityAIComponentPfaffMathis     Brain;
 
 	UAEvadeZombieAction*   EvadeAction		= nullptr;
 	UAScavengeAction*      ScavengeAction   = nullptr;

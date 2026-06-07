@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "../Steering/SteeringBehaviors.h"
+#include "../Steering/SteeringBehaviorsPfaffMathis.h"
 
 class PathFollow : public ISteeringBehavior
 {

@@ -1,4 +1,4 @@
-#include "SteeringBehaviors.h"
+#include "SteeringBehaviorsPfaffMathis.h"
 #include "GameAI_Zombie/Survivor/SurvivorPawn.h"
 #include "DrawDebugHelpers.h"
 

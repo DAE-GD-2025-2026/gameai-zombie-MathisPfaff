@@ -32,10 +32,12 @@ public:
 			}
 		}
 
-		if (Best && Best != CurrentAction)
+		if (BestScore < 0.01f) Best = nullptr;
+
+		if (Best != CurrentAction)
 		{
 			if (CurrentAction) CurrentAction->OnExit(Agent);
-			Best->OnEnter(Agent);
+			if (Best) Best->OnEnter(Agent);
 			CurrentAction = Best;
 		}
 
@@ -43,7 +45,6 @@ public:
 			CurrentAction->Execute(Agent, DeltaTime);
 	}
 
-	// Returns the active steering behavior so the controller can call CalculateSteering
 	ISteeringBehavior* GetActiveBehavior() const
 	{
 		return CurrentAction ? CurrentAction->GetActiveBehavior() : nullptr;

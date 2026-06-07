@@ -29,6 +29,10 @@ private:
 	UASeekMedkitAction*    SeekMedkitAction = nullptr;
 	UASeekWeaponAction*    SeekWeaponAction = nullptr;
 	UASeekFoodAction*      SeekFoodAction   = nullptr;
+	UAFightZombieAction* FightAction = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category="AI")
+	float FightMaxDistance = 600.f;
 
 	UPROPERTY(EditDefaultsOnly, Category="AI")
 	float EvadeMaxDistance = 1500.f;

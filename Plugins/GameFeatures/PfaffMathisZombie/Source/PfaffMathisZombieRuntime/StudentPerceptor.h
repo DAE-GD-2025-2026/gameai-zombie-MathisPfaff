@@ -26,19 +26,22 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category="Perception")
 	float ScanRotationSpeed = 360.f;
 
-	// How long (seconds) the survivor keeps fleeing after losing sight of a zombie
 	UPROPERTY(EditDefaultsOnly, Category="Perception")
 	float ZombieMemoryDuration = 4.f;
 
 	const TArray<AActor*>& GetPerceivedActors() const { return PerceivedActors; }
 
-	// Returns true if a zombie was seen recently (either now or within memory window)
 	bool HasZombieMemory() const { return ZombieMemoryTimer > 0.f; }
 	FVector GetLastKnownZombiePosition() const { return LastKnownZombiePosition; }
-
+	
+	void StartScanning() { bScanning = true;  }
+	void StopScanning()  { bScanning = false; }
+	bool IsScanning()    const { return bScanning;}
+	
 private:
 	TArray<AActor*> PerceivedActors;
 
 	FVector LastKnownZombiePosition = FVector::ZeroVector;
-	float   ZombieMemoryTimer       = 0.f; // counts down after zombie lost
+	float   ZombieMemoryTimer       = 0.f;
+	bool bScanning = true;
 };

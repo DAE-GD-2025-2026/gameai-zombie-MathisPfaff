@@ -4,9 +4,11 @@
 #include <functional>
 #include <vector>
 #include <string>
+#include "StudentPerceptor.h"
 #include "GameAI_Zombie/Items/BaseItem.h"
 #include "GameAI_Zombie/Items/ItemType.h"
 #include "GameAI_Zombie/Common/HealthComponent.h"
+#include "GameAI_Zombie/Common/StaminaComponent.h"
 #include "GameAI_Zombie/Items/Food.h"
 #include "GameAI_Zombie/Common/InventoryComponent.h"
 #include "EngineUtils.h"
@@ -104,12 +106,11 @@ static float CalcScore(const std::vector<TConsideration<TContext>>& Consideratio
 
 // ===========================================================================
 // EVADE ZOMBIE ACTION
-// Context: how close the nearest zombie is (0=far, 1=touching)
-//   Zombie close → evade scores high
 // ===========================================================================
 struct FEvadeZombieContext
 {
     float NormalizedProximityToZombie = 0.f;
+    bool bHasWeapon = false;
 };
 
 class UAEvadeZombieAction : public IUtilityAction
@@ -121,26 +122,205 @@ public:
     UAEvadeZombieAction()
     {
         Name = "EvadeZombie";
-
         Considerations.push_back({
             "ZombieClose",
             [](const FEvadeZombieContext& c){ return c.NormalizedProximityToZombie; },
             ECurveType::Exponential
         });
+        Considerations.push_back({
+            "Unarmed",
+            [](const FEvadeZombieContext& c){ return c.bHasWeapon ? 0.3f : 1.f; },
+            ECurveType::Linear
+        });
     }
 
     float Score() const override { return CalcScore(Considerations, Context); }
 
-    void OnEnter(ASurvivorPawn& Agent) override { Agent.StartRunning(); }
-    void OnExit (ASurvivorPawn& Agent) override { Agent.StopRunning(); }
-    void Execute(ASurvivorPawn&, float) override {}
+    void OnEnter(ASurvivorPawn& Agent) override
+    {
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StartScanning();
+    
+        if (UStaminaComponent* ST = Agent.GetComponentByClass<UStaminaComponent>())
+            if (ST->GetCurrentStamina() > 0.f)
+                Agent.StartRunning();
+    }
 
-    ISteeringBehavior* GetActiveBehavior() override { return &m_Evade; }
+    void OnExit(ASurvivorPawn& Agent) override
+    {
+        Agent.StopRunning();
+    }
 
-    void SetTarget(const FTargetData& T) { m_Evade.SetTarget(T); }
+    void Execute(ASurvivorPawn& Agent, float DeltaTime) override
+    {
+        UStaminaComponent* ST  = Agent.GetComponentByClass<UStaminaComponent>();
+        UInventoryComponent* Inv = Agent.GetComponentByClass<UInventoryComponent>();
+        UHealthComponent* HP   = Agent.GetComponentByClass<UHealthComponent>();
+
+        if (ST)
+        {
+            if (Agent.IsRunning() && ST->GetCurrentStamina() <= 0.f)
+            {
+                Agent.StopRunning();
+                if (Inv) { if (!Inv->UseItem(3)) Inv->UseItem(4); }
+            }
+            else if (!Agent.IsRunning() && ST->GetCurrentStamina() > 0.f)
+            {
+                Agent.StartRunning();
+            }
+        }
+
+        if (HP && Inv)
+        {
+            float HealthRatio = FMath::Clamp((float)HP->GetHealth() / (float)HP->GetMaxHealth(), 0.f, 1.f);
+            if (HealthRatio < 0.4f)
+                Inv->UseItem(2);
+        }
+    }
+
+    void SetZombieTargets(const TArray<FTargetData>& Targets)
+    {
+        ZombieTargets = Targets;
+        while (m_Evades.size() < static_cast<size_t>(ZombieTargets.Num()))
+            m_Evades.emplace_back();
+        for (int32 i = 0; i < ZombieTargets.Num(); ++i)
+            m_Evades[i].SetTarget(ZombieTargets[i]);
+        m_MultiEvade.SetZombies(&m_Evades, &ZombieTargets);
+    }
+
+    void SetTarget(const FTargetData& T)
+    {
+        TArray<FTargetData> S; S.Add(T);
+        SetZombieTargets(S);
+    }
+
+    ISteeringBehavior* GetActiveBehavior() override { return &m_MultiEvade; }
 
 private:
-    Evade m_Evade;
+    struct FMultiEvadeSteering : public ISteeringBehavior
+    {
+        std::vector<Evade>*   Evades  = nullptr;
+        TArray<FTargetData>*  Targets = nullptr;
+
+        void SetZombies(std::vector<Evade>* E, TArray<FTargetData>* T)
+        {
+            Evades = E; Targets = T;
+        }
+
+        SteeringOutput CalculateSteering(float DeltaT, ASurvivorPawn& Agent) override
+        {
+            SteeringOutput Output{};
+            if (!Evades || !Targets || Targets->IsEmpty()) return Output;
+
+            const FVector2D AgentPos  = FVector2D(Agent.GetActorLocation());
+            FVector2D BlendedDir      = FVector2D::ZeroVector;
+            float     TotalWeight     = 0.f;
+
+            for (int32 i = 0; i < Targets->Num(); ++i)
+            {
+                SteeringOutput EvadeOut = (*Evades)[i].CalculateSteering(DeltaT, Agent);
+                if (EvadeOut.LinearVelocity.IsNearlyZero()) continue;
+
+                float Dist   = FVector2D::Distance(AgentPos, (*Targets)[i].Position);
+                float Weight = (Dist > 1.f) ? (1.f / Dist) : 1.f;
+
+                FVector2D Dir = EvadeOut.LinearVelocity;
+                Dir.Normalize();
+                BlendedDir  += Dir * Weight;
+                TotalWeight += Weight;
+            }
+
+            if (TotalWeight > 0.f)
+                BlendedDir /= TotalWeight;
+
+            if (BlendedDir.SizeSquared() < 0.01f && Targets->Num() > 0)
+            {
+                FVector2D Fallback = AgentPos - (*Targets)[0].Position;
+                if (!Fallback.IsNearlyZero())
+                {
+                    Fallback.Normalize();
+                    BlendedDir = FVector2D(-Fallback.Y, Fallback.X);
+                }
+            }
+
+            Output.LinearVelocity = BlendedDir;
+            return Output;
+        }
+    };
+
+    std::vector<Evade>    m_Evades;
+    TArray<FTargetData>   ZombieTargets;
+    FMultiEvadeSteering   m_MultiEvade;
+};
+
+// ===========================================================================
+// FIGHT ZOMBIE ACTION
+// ===========================================================================
+struct FFightZombieContext
+{
+    float NormalizedProximityToZombie = 0.f;
+    bool  bHasWeapon                  = false;
+    float HealthRatio                 = 1.f;
+};
+
+class UAFightZombieAction : public IUtilityAction
+{
+public:
+    FFightZombieContext                              Context;
+    std::vector<TConsideration<FFightZombieContext>> Considerations;
+
+    UAFightZombieAction()
+    {
+        Name = "FightZombie";
+
+        Considerations.push_back({
+            "ZombieClose",
+            [](const FFightZombieContext& c){ return c.NormalizedProximityToZombie; },
+            ECurveType::Exponential
+        });
+        Considerations.push_back({
+            "HasWeapon",
+            [](const FFightZombieContext& c){ return c.bHasWeapon ? 1.f : 0.f; },
+            ECurveType::Linear
+        });
+        Considerations.push_back({
+            "HealthNotCritical",
+            [](const FFightZombieContext& c){ return c.HealthRatio; },
+            ECurveType::Linear
+        });
+    }
+
+    float Score() const override { return CalcScore(Considerations, Context); }
+
+    void OnEnter(ASurvivorPawn& Agent) override
+    {
+        FireCooldown = 0.f;
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StopScanning();
+    }
+    void OnExit(ASurvivorPawn& Agent) override {}
+
+    void Execute(ASurvivorPawn& Agent, float DeltaTime) override
+    {
+        FireCooldown -= DeltaTime;
+        if (FireCooldown > 0.f) return;
+
+        UInventoryComponent* Inv = Agent.GetComponentByClass<UInventoryComponent>();
+        if (!Inv) return;
+
+        if (Inv->UseItem(1))
+            FireCooldown = ShotgunCooldown;
+        else if (Inv->UseItem(0))
+            FireCooldown = PistolCooldown;
+    }
+
+    ISteeringBehavior* GetActiveBehavior() override { return &m_Face; }
+
+    void SetZombieTarget(const FTargetData& T) { m_Face.SetTarget(T); }
+
+private:
+    Face  m_Face;
+    float FireCooldown    = 0.f;
+    float PistolCooldown  = 0.3f;  
+    float ShotgunCooldown = 0.5f;
 };
 
 inline bool InvHasType(UInventoryComponent* Inv, EItemType Type)
@@ -172,20 +352,14 @@ inline int InvGetFreeSlotForType(UInventoryComponent* Inv, EItemType Type)
 }
 
 // ===========================================================================
-// Shared context for "seek a specific item" actions
-// bIsInHouse        — survivor is inside a house (boosts score slightly)
-// bItemInInventory  — already carrying one (kills score → action won't fire)
-// NormalizedDist    — 0=far/not seen, 1=right on top of it
+// Base class shared by Medkit / Weapon / Food actions
 // ===========================================================================
 struct FSeekItemContext
 {
     bool  bItemInInventory = false;
-    float NormalizedDist   = 0.f;   // 1 = at pickup range, 0 = not visible / far away
+    float NormalizedDist   = 0.f;
 };
 
-// ---------------------------------------------------------------------------
-// Base class shared by Medkit / Weapon / Food actions
-// ---------------------------------------------------------------------------
 class UASeekItemActionBase : public IUtilityAction
 {
 public:
@@ -194,12 +368,16 @@ public:
 
     float Score() const override { return CalcScore(Considerations, Context); }
 
-    void OnEnter(ASurvivorPawn&) override {}
-    void OnExit (ASurvivorPawn&) override { MemoryTimer = 0.f; }  // clear on exit
-
+    void OnEnter(ASurvivorPawn& Agent) override
+    {
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StopScanning();
+    }
+    void OnExit(ASurvivorPawn& Agent) override
+    {
+        MemoryTimer = 0.f;
+    }
     void Execute(ASurvivorPawn& Agent, float DeltaTime) override
     {
-        // Count down memory
         if (MemoryTimer > 0.f)
             MemoryTimer = FMath::Max(0.f, MemoryTimer - DeltaTime);
 
@@ -223,15 +401,13 @@ public:
 
     ISteeringBehavior* GetActiveBehavior() override { return &m_Arrive; }
 
-    // Called from TickComponent when item IS visible
     void SetTarget(const FTargetData& T, ABaseItem* Item)
     {
         m_Arrive.SetTarget(T);
         TargetItem  = Item;
-        MemoryTimer = MemoryDuration; // refresh memory
+        MemoryTimer = MemoryDuration;
     }
 
-    // Call every tick so NormalizedDist stays high while item is remembered
     float GetMemoryDist() const { return MemoryTimer > 0.f ? 1.f : 0.f; }
 
 protected:
@@ -239,7 +415,7 @@ protected:
     ABaseItem* TargetItem      = nullptr;
     float      GrabRadiusSq    = 100.f * 100.f;
     float      MemoryTimer     = 0.f;
-    float      MemoryDuration  = 5.f;   // seconds to keep targeting after losing sight
+    float      MemoryDuration  = 5.f;
 
     Arrive m_Arrive;
 };
@@ -270,8 +446,7 @@ public:
 };
 
 // ===========================================================================
-// SEEK WEAPON ACTION  (pistol + shotgun share one action; it prefers pistol
-//                      first, then shotgun if pistol slot is already filled)
+// SEEK WEAPON ACTION
 // ===========================================================================
 class UASeekWeaponAction : public UASeekItemActionBase
 {
@@ -279,7 +454,7 @@ public:
     UASeekWeaponAction()
     {
         Name           = "SeekWeapon";
-        ItemTypeToGrab = EItemType::Pistol; // updated dynamically in context update
+        ItemTypeToGrab = EItemType::Pistol;
 
         Considerations.push_back({
             "NoWeaponInInventory",
@@ -293,7 +468,6 @@ public:
         });
     }
 
-    // Call this from the context update so GrabItem uses the right slot
     void SetWeaponType(EItemType T) { ItemTypeToGrab = T; }
 };
 
@@ -323,8 +497,6 @@ public:
 
 // ===========================================================================
 // SCAVENGE ACTION
-// Default behavior — visit houses one by one to look for items
-// Scores high when no zombie is nearby (inverse proximity)
 // ===========================================================================
 struct FScavengeContext
 {
@@ -337,6 +509,16 @@ class UAScavengeAction : public IUtilityAction
 public:
     FScavengeContext                              Context;
     std::vector<TConsideration<FScavengeContext>> Considerations;
+    
+    void UpdatePerceivedHouses(const TArray<AActor*>& Perceived)
+    {
+        for (AActor* Actor : Perceived)
+        {
+            if (AHouse* H = Cast<AHouse>(Actor))
+                KnownHouses.AddUnique(H);
+        }
+        KnownHouses.RemoveAll([](AHouse* H){ return !IsValid(H); });
+    }
 
     UAScavengeAction()
     {
@@ -344,12 +526,12 @@ public:
 
         Considerations.push_back({
             "NoZombieNearby",
-            [](const FScavengeContext& c){ return 1.f - c.NormalizedProximityToZombie; },
+            [](const FScavengeContext& c){ return FMath::Max(0.05f, 1.f - c.NormalizedProximityToZombie); },
             ECurveType::Linear
         });
         Considerations.push_back({
             "NoItemVisible",
-            [](const FScavengeContext& c){ return c.bItemVisible ? 0.f : 1.f; },
+            [](const FScavengeContext& c){ return c.bItemVisible ? 0.05f : 1.f; },
             ECurveType::Linear
         });
     }
@@ -358,77 +540,102 @@ public:
 
     void OnEnter(ASurvivorPawn& Agent) override
     {
-        CollectHouses(Agent);
-        PickNextHouse(Agent);
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StartScanning();
+        PickNextTarget(Agent);
     }
-
-    void OnExit(ASurvivorPawn&) override {}
-
-    void Execute(ASurvivorPawn& Agent, float /*DeltaTime*/) override
+    
+    void OnExit(ASurvivorPawn& Agent) override
     {
-        if (AllHouses.IsEmpty())
+        if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>()) P->StopScanning();
+    }
+
+    void Execute(ASurvivorPawn& Agent, float DeltaTime) override
+    {
+        for (auto& Pair : HouseCooldowns)
+            Pair.Value = FMath::Max(0.f, Pair.Value - DeltaTime);
+
+        bool bShouldWander = false;
+
+        if (KnownHouses.IsEmpty())
         {
-            CollectHouses(Agent);
-            PickNextHouse(Agent);
-            return;
+            bShouldWander = true;
+        }
+        else
+        {
+            if (!CurrentTargetHouse)
+                PickNextTarget(Agent);
+
+            if (CurrentTargetHouse)
+            {
+                const float DistSq = FVector::DistSquared(
+                    Agent.GetActorLocation(), CurrentTargetHouse->GetActorLocation());
+
+                if (DistSq < ArrivalRadiusSq)
+                {
+                    HouseCooldowns.Add(CurrentTargetHouse, HouseRevisitCooldown);
+                    CurrentTargetHouse = nullptr;
+                    PickNextTarget(Agent);
+                }
+            }
+
+            bShouldWander = (CurrentTargetHouse == nullptr);
         }
 
-        if (!CurrentTargetHouse)
+        if (bShouldWander != bUseWander)
         {
-            PickNextHouse(Agent);
-            return;
+            bUseWander = bShouldWander;
+            if (auto* P = Agent.GetComponentByClass<UStudentPerceptor>())
+            {
+                if (bUseWander)
+                    P->StopScanning();
+                else
+                    P->StartScanning();
+            }
         }
-
-        const float DistSq = FVector::DistSquared(
-            Agent.GetActorLocation(), CurrentTargetHouse->GetActorLocation());
-
-        if (DistSq < ArrivalRadiusSq)
+        else
         {
-            VisitedHouses.Add(CurrentTargetHouse);
-            CurrentTargetHouse = nullptr;
-            PickNextHouse(Agent);
+            bUseWander = bShouldWander;
         }
     }
 
-    ISteeringBehavior* GetActiveBehavior() override { return &m_PathFollow; }
-
+    ISteeringBehavior* GetActiveBehavior() override
+    {
+        return bUseWander ? static_cast<ISteeringBehavior*>(&m_Wander)
+                          : static_cast<ISteeringBehavior*>(&m_PathFollow);
+    }
+    
 private:
     PathFollow      m_PathFollow;
-    TArray<AHouse*> AllHouses;
-    TSet<AHouse*>   VisitedHouses;
+    Wander          m_Wander;
+    TArray<AHouse*> KnownHouses;
+    TMap<AHouse*, float> HouseCooldowns;
+    float HouseRevisitCooldown = 120.f;
     AHouse*         CurrentTargetHouse = nullptr;
     float           ArrivalRadiusSq    = 350.f * 350.f;
+    bool            bUseWander         = false;
 
-    void CollectHouses(ASurvivorPawn& Agent)
+    void PickNextTarget(ASurvivorPawn& Agent)
     {
-        AllHouses.Reset();
-        VisitedHouses.Empty();
-        for (TActorIterator<AHouse> It(Agent.GetWorld()); It; ++It)
-            AllHouses.Add(*It);
-    }
+        if (KnownHouses.IsEmpty()) { bUseWander = true; return; }
 
-    void PickNextHouse(ASurvivorPawn& Agent)
-    {
-        // All houses visited — reset and loop
-        if (VisitedHouses.Num() >= AllHouses.Num())
-            VisitedHouses.Empty();
-
-        // Find nearest unvisited house
         AHouse* Best     = nullptr;
         float   BestDist = FLT_MAX;
         const FVector MyLoc = Agent.GetActorLocation();
 
-        for (AHouse* H : AllHouses)
+        for (AHouse* H : KnownHouses)
         {
-            if (VisitedHouses.Contains(H)) continue;
+            float* Cooldown = HouseCooldowns.Find(H);
+            if (Cooldown && *Cooldown > 0.f) continue;
+
             float Dist = FVector::Dist(MyLoc, H->GetActorLocation());
             if (Dist < BestDist) { BestDist = Dist; Best = H; }
         }
 
         CurrentTargetHouse = Best;
+        bUseWander = (Best == nullptr);
+
         if (Best)
         {
-            // Use pawn's CalculatePath (UE NavMesh A*) to get navmesh-aware waypoints
             TArray<FVector> Path = Agent.CalculatePath(Best->GetActorLocation());
             if (Path.Num() > 0)
                 m_PathFollow.SetPath(Path);

@@ -26,6 +26,7 @@ void USurvivorUtilityAIComponent::BeginPlay()
     SeekMedkitAction = Brain.AddAction(std::make_unique<UASeekMedkitAction>());
     SeekWeaponAction = Brain.AddAction(std::make_unique<UASeekWeaponAction>());
     SeekFoodAction   = Brain.AddAction(std::make_unique<UASeekFoodAction>());
+    FightAction      = Brain.AddAction(std::make_unique<UAFightZombieAction>());
 }
 
 void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick TickType,
@@ -36,7 +37,6 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
     
     const FVector MyLoc = SurvivorPawn->GetActorLocation();
 
-    // --- Perceptor & health ---
     UStudentPerceptor* Perceptor = SurvivorPawn->GetComponentByClass<UStudentPerceptor>();
     const TArray<AActor*>& Perceived = Perceptor ? Perceptor->GetPerceivedActors() : TArray<AActor*>{};
 
@@ -44,22 +44,63 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
     if (UHealthComponent* HP = SurvivorPawn->GetComponentByClass<UHealthComponent>())
         HealthRatio = FMath::Clamp((float)HP->GetHealth() / (float)HP->GetMaxHealth(), 0.f, 1.f);
 
-    // --- Evade context ---
-    if (Perceptor && Perceptor->HasZombieMemory())
+    UInventoryComponent* Inv = SurvivorPawn->GetComponentByClass<UInventoryComponent>();
+    bool bHasPistol    = InvHasType(Inv, EItemType::Pistol);
+    bool bHasShotgun   = InvHasType(Inv, EItemType::Shotgun);
+    bool bHasMedkit    = InvHasType(Inv, EItemType::Medkit);
+    bool bFoodSlotFull = InvGetFreeSlotForType(Inv, EItemType::Food) == -1;
+    
+    bool bHasWeapon = bHasPistol || bHasShotgun;
+    
+    TArray<FTargetData> ZombieTargetData;
+    float ClosestZombieDist = FLT_MAX;
+
+    if (Perceptor)
     {
-        FVector ZombiePos = Perceptor->GetLastKnownZombiePosition();
-        // Normalize against evade distance — only urgent when zombie is actually close
-        float ZombieDist = FVector::Dist(MyLoc, ZombiePos);
-        float Proximity  = FMath::Clamp(1.f - (ZombieDist / EvadeMaxDistance), 0.f, 1.f);
+        for (AActor* Actor : Perceived)
+        {
+            if (!Actor) continue;
+            if (Cast<ABaseZombie>(Actor))
+            {
+                float Dist = FVector::Dist(MyLoc, Actor->GetActorLocation());
+                ClosestZombieDist = FMath::Min(ClosestZombieDist, Dist);
+
+                FTargetData TD;
+                TD.Position        = FVector2D(Actor->GetActorLocation());
+                TD.LinearVelocity  = FVector2D(Actor->GetVelocity());
+                ZombieTargetData.Add(TD);
+            }
+        }
+        
+        ScavengeAction->UpdatePerceivedHouses(Perceived);
+
+        if (ZombieTargetData.IsEmpty() && Perceptor->HasZombieMemory())
+        {
+            FVector ZombiePos = Perceptor->GetLastKnownZombiePosition();
+            float MemDist = FVector::Dist(MyLoc, ZombiePos);
+
+            if (MemDist < EvadeMaxDistance)
+            {
+                ClosestZombieDist = MemDist;
+                FTargetData TD;
+                TD.Position = FVector2D(ZombiePos);
+                ZombieTargetData.Add(TD);
+            }
+        }
+    }
+
+    if (!ZombieTargetData.IsEmpty())
+    {
+        float Proximity = FMath::Clamp(1.f - (ClosestZombieDist / EvadeMaxDistance), 0.f, 1.f);
         EvadeAction->Context.NormalizedProximityToZombie = Proximity;
-        EvadeAction->SetTarget(FTargetData{ FVector2D(ZombiePos.X, ZombiePos.Y) });
+        EvadeAction->Context.bHasWeapon = bHasWeapon;
+        EvadeAction->SetZombieTargets(ZombieTargetData);
     }
     else
     {
         EvadeAction->Context.NormalizedProximityToZombie = 0.f;
     }
 
-    // --- House bounds check ---
     bool bSurvivorInHouse = false;
     for (TActorIterator<AHouse> It(SurvivorPawn->GetWorld()); It; ++It)
     {
@@ -71,31 +112,26 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
             break;
         }
     }
-
-    // --- Inventory state ---
-    UInventoryComponent* Inv = SurvivorPawn->GetComponentByClass<UInventoryComponent>();
-    bool bHasPistol    = InvHasType(Inv, EItemType::Pistol);
-    bool bHasShotgun   = InvHasType(Inv, EItemType::Shotgun);
-    bool bHasMedkit    = InvHasType(Inv, EItemType::Medkit);
-    bool bFoodSlotFull = InvGetFreeSlotForType(Inv, EItemType::Food) == -1;
-
-    // --- Nearest items from perception ---
+    
     ABaseItem* NearestMedkit     = nullptr;
     ABaseItem* NearestWeapon     = nullptr;
     ABaseItem* NearestFood       = nullptr;
+    ABaseZombie* NearestZombie   = nullptr;
     float      NearestMedkitDist = FLT_MAX;
     float      NearestWeaponDist = FLT_MAX;
     float      NearestFoodDist   = FLT_MAX;
     float      NearestZombieDist = FLT_MAX;
+    
+    EItemType DesiredWeapon = (!bHasPistol) ? EItemType::Pistol : EItemType::Shotgun;
 
     for (AActor* Actor : Perceived)
     {
         if (!Actor) continue;
         float Dist = FVector::Dist(MyLoc, Actor->GetActorLocation());
 
-        if (Cast<ABaseZombie>(Actor))
+        if (ABaseZombie* Z = Cast<ABaseZombie>(Actor))
         {
-            NearestZombieDist = FMath::Min(NearestZombieDist, Dist);
+            if (Dist < NearestZombieDist) { NearestZombieDist = Dist; NearestZombie = Z; }
         }
         else if (ABaseItem* Item = Cast<ABaseItem>(Actor))
         {
@@ -106,7 +142,8 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
                     break;
                 case EItemType::Pistol:
                 case EItemType::Shotgun:
-                    if (Dist < NearestWeaponDist) { NearestWeaponDist = Dist; NearestWeapon = Item; }
+                    if (Item->GetItemType() == DesiredWeapon)
+                        if (Dist < NearestWeaponDist) { NearestWeaponDist = Dist; NearestWeapon = Item; }
                     break;
                 case EItemType::Food:
                     if (Dist < NearestFoodDist)   { NearestFoodDist = Dist;   NearestFood = Item; }
@@ -124,7 +161,6 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
         return 0.5f + CloseBonus * 0.5f;
     };
     
-    // Medkit — use memory fallback if not currently visible
     float MedkitDist = NearestMedkit
         ? NormDist(NearestMedkitDist, NearestMedkit)
         : SeekMedkitAction->GetMemoryDist();
@@ -136,12 +172,10 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
             FTargetData{ FVector2D(NearestMedkit->GetActorLocation().X, NearestMedkit->GetActorLocation().Y) },
             NearestMedkit);
     
-    // Weapon
     float WeaponDist = NearestWeapon
         ? NormDist(NearestWeaponDist, NearestWeapon)
         : SeekWeaponAction->GetMemoryDist();
     
-    EItemType DesiredWeapon = (!bHasPistol) ? EItemType::Pistol : EItemType::Shotgun;
     SeekWeaponAction->SetWeaponType(DesiredWeapon);
     SeekWeaponAction->Context.bItemInInventory = (DesiredWeapon == EItemType::Pistol ? bHasPistol : bHasShotgun);
     SeekWeaponAction->Context.NormalizedDist   = WeaponDist;
@@ -150,7 +184,6 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
             FTargetData{ FVector2D(NearestWeapon->GetActorLocation().X, NearestWeapon->GetActorLocation().Y) },
             NearestWeapon);
     
-    // Food
     float FoodDist = NearestFood
         ? NormDist(NearestFoodDist, NearestFood)
         : SeekFoodAction->GetMemoryDist();
@@ -162,23 +195,41 @@ void USurvivorUtilityAIComponent::TickComponent(float DeltaTime, ELevelTick Tick
             FTargetData{ FVector2D(NearestFood->GetActorLocation().X, NearestFood->GetActorLocation().Y) },
             NearestFood);
     
-    // Scavenge suppressed whenever any seek action has an active memory
-    bool bAnyItemVisible = (MedkitDist > 0.f || WeaponDist > 0.f || FoodDist > 0.f);
-    ScavengeAction->Context.NormalizedProximityToZombie = EvadeAction->Context.NormalizedProximityToZombie;
+    if (NearestZombie)
+    {
+        FVector ZPos = NearestZombie->GetActorLocation();
+        float Proximity = FMath::Clamp(1.f - (NearestZombieDist / FightMaxDistance), 0.f, 1.f);
+        FightAction->Context.NormalizedProximityToZombie = Proximity;
+        FightAction->Context.bHasWeapon  = bHasWeapon;
+        FightAction->Context.HealthRatio = HealthRatio;
+        FightAction->SetZombieTarget(FTargetData{ FVector2D(ZPos) });
+    }
+    else
+    {
+        FightAction->Context.NormalizedProximityToZombie = 0.f;
+        FightAction->Context.bHasWeapon  = false;
+    }
+    
+    bool bAnyItemVisible = (NearestMedkit != nullptr || NearestWeapon != nullptr || NearestFood != nullptr);    ScavengeAction->Context.NormalizedProximityToZombie = EvadeAction->Context.NormalizedProximityToZombie;
     ScavengeAction->Context.bItemVisible = bAnyItemVisible;
 
-    // --- Run brain ---
     Brain.Update(*SurvivorPawn, DeltaTime);
 
-    // --- Apply steering ---
     if (ISteeringBehavior* Active = Brain.GetActiveBehavior())
     {
         SteeringOutput Output = Active->CalculateSteering(DeltaTime, *SurvivorPawn);
+
         if (!Output.LinearVelocity.IsNearlyZero())
             SurvivorPawn->AddMovementInput(FVector(Output.LinearVelocity.X, Output.LinearVelocity.Y, 0), 1.f);
+
+        if (FMath::Abs(Output.AngularVelocity) > KINDA_SMALL_NUMBER)
+        {
+            FRotator Rot = SurvivorPawn->GetActorRotation();
+            Rot.Yaw += Output.AngularVelocity * 180.f * DeltaTime;
+            SurvivorPawn->SetActorRotation(Rot);
+        }
     }
 
-    // Debug HUD
     GEngine->AddOnScreenDebugMessage(10, 0.f, FColor::Cyan,
         FString::Printf(TEXT("Action: %s | HP: %.0f%% | Pistol:%s Shotgun:%s Medkit:%s Food:%s"),
             *FString(Brain.GetCurrentActionName()),

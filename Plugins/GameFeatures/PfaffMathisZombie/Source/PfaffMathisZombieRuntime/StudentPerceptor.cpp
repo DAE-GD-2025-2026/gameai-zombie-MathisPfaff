@@ -25,25 +25,25 @@ void UStudentPerceptor::TickComponent(float DeltaTime, ELevelTick TickType,
 		return !IsValid(A);
 	});
 
-	// Spin to scan
-	if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+	if (bScanning)
 	{
-		FRotator Rot = OwnerPawn->GetActorRotation();
-		Rot.Yaw += ScanRotationSpeed * DeltaTime;
-		OwnerPawn->SetActorRotation(Rot);
+		if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+		{
+			FRotator Rot = OwnerPawn->GetActorRotation();
+			Rot.Yaw += ScanRotationSpeed * DeltaTime;
+			OwnerPawn->SetActorRotation(Rot);
+		}
 	}
 
-	// Count down zombie memory
 	if (ZombieMemoryTimer > 0.f)
 		ZombieMemoryTimer = FMath::Max(0.f, ZombieMemoryTimer - DeltaTime);
 
-	// Keep last known position updated for currently perceived zombies
 	for (AActor* Actor : PerceivedActors)
 	{
 		if (Actor && Actor->IsA<ABaseZombie>())
 		{
 			LastKnownZombiePosition = Actor->GetActorLocation();
-			ZombieMemoryTimer = ZombieMemoryDuration; // refresh timer while still seen
+			ZombieMemoryTimer = ZombieMemoryDuration;
 		}
 	}
 }
@@ -59,7 +59,6 @@ void UStudentPerceptor::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 	else
 	{
 		PerceivedActors.Remove(Actor);
-		// On losing sight of a zombie, start the memory countdown
 		if (Actor && Actor->IsA<ABaseZombie>())
 			ZombieMemoryTimer = ZombieMemoryDuration;
 	}
